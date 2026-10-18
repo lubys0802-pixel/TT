@@ -21,7 +21,7 @@
     }
     .action-btn {
       background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 6px;
-      padding: 6px 10px; font-size: 13px; font-weight: 500; cursor: pointer; flex: 1; text-align: center; white-space: nowrap;
+      padding: 7px 10px; font-size: 13px; font-weight: 500; cursor: pointer; flex: 1; text-align: center; white-space: nowrap;
     }
     .action-btn.primary { background: #007aff; border-color: #007aff; }
 
@@ -47,12 +47,33 @@
     .tool-btn.active { border-color: #007aff; color: #fff; background: #2c3848; }
     .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 
-    /* 細節控制列（顏色、粗細、字體） */
+    /* 控制列 */
     .control-row {
       display: flex; align-items: center; gap: 8px; font-size: 12px; color: #ccc;
     }
     .control-row input[type="range"] { flex: 1; }
     .control-row input[type="color"] { width: 28px; height: 28px; border: none; border-radius: 4px; background: none; cursor: pointer; }
+
+    /* 自訂彈出文字輸入視窗 (解決 iOS prompt 造成的畫布消失) */
+    #textModal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.65); z-index: 100; align-items: center; justify-content: center;
+    }
+    .modal-box {
+      background: #242424; width: 85%; max-width: 320px; border-radius: 12px; padding: 18px;
+      display: flex; flex-direction: column; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+    .modal-box h3 { color: #fff; font-size: 15px; text-align: center; }
+    .modal-box input[type="text"] {
+      width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #555;
+      background: #121212; color: #fff; font-size: 15px; outline: none;
+    }
+    .modal-btns { display: flex; gap: 8px; }
+    .modal-btns button {
+      flex: 1; padding: 8px; border-radius: 6px; border: none; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .modal-confirm { background: #007aff; color: #fff; }
+    .modal-cancel { background: #444; color: #ccc; }
 
     #cameraInput { display: none; }
   </style>
@@ -72,38 +93,50 @@
   </div>
 
   <footer>
-    <!-- 功能模式切換列 -->
     <div class="scroll-row">
-      <!-- 直線管線類 -->
-      <button class="tool-btn active" data-type="pipe-straight" data-color="#00aaff" data-width="6" data-label="氣管">
-        <span class="dot" style="background: #00aaff;"></span>壓縮空氣管(藍直)
+      <!-- 直線管路 -->
+      <button class="tool-btn active" data-type="pipe-straight" data-color="#00aaff" data-width="6">
+        <span class="dot" style="background: #00aaff;"></span>空氣管(藍直)
       </button>
-      <button class="tool-btn" data-type="pipe-straight" data-color="#ff3b30" data-width="6" data-label="電力">
+      <button class="tool-btn" data-type="pipe-straight" data-color="#ff3b30" data-width="6">
         <span class="dot" style="background: #ff3b30;"></span>動力電纜(紅直)
       </button>
-      <button class="tool-btn" data-type="pipe-straight" data-color="#ff9500" data-width="4" data-label="排水">
-        <span class="dot" style="background: #ff9500;"></span>冷凝排水管(橙直)
+      <button class="tool-btn" data-type="pipe-straight" data-color="#ff9500" data-width="4">
+        <span class="dot" style="background: #ff9500;"></span>排水管(橙直)
       </button>
       
-      <!-- 設備圖塊類 -->
-      <button class="tool-btn" data-type="stamp" data-stamp="compressor">🏭 空壓機圖塊</button>
-      <button class="tool-btn" data-type="stamp" data-stamp="tank">🛢️ 儲氣筒圖塊</button>
-      <button class="tool-btn" data-type="stamp" data-stamp="dryer">❄️ 乾燥機圖塊</button>
+      <!-- 設備與管件圖塊 -->
+      <button class="tool-btn" data-type="stamp" data-stamp="compressor">🏭 空壓機</button>
+      <button class="tool-btn" data-type="stamp" data-stamp="tank">🛢️ 儲氣筒</button>
+      <button class="tool-btn" data-type="stamp" data-stamp="dryer">❄️ 乾燥機</button>
+      <button class="tool-btn" data-type="stamp" data-stamp="tee">🔀 空壓三通</button>
+      <button class="tool-btn" data-type="stamp" data-stamp="coupler">🔌 快速接頭</button>
 
       <!-- 文字與塗鴉 -->
       <button class="tool-btn" data-type="text">🔤 文字標註</button>
       <button class="tool-btn" data-type="freehand">✏️ 自由繪圖</button>
     </div>
 
-    <!-- 輔助參數調整列 -->
-    <div class="control-row" id="controlPanel">
-      <span id="controlLabel">線寬 / 尺寸:</span>
+    <div class="control-row">
+      <span id="controlLabel">管線粗細:</span>
       <input type="range" id="sizeRange" min="2" max="60" value="6">
       <span id="sizeValue">6px</span>
-      <span style="margin-left: 8px;">自由調色:</span>
+      <span style="margin-left: 6px;">顏色:</span>
       <input type="color" id="colorPicker" value="#00aaff">
     </div>
   </footer>
+
+  <!-- 自訂文字輸入視窗 -->
+  <div id="textModal">
+    <div class="modal-box">
+      <h3>輸入標註文字</h3>
+      <input type="text" id="modalTextInput" placeholder="例: 1吋鍍鋅管、50HP、380V">
+      <div class="modal-btns">
+        <button class="modal-cancel" id="modalCancel">取消</button>
+        <button class="modal-confirm" id="modalConfirm">確定加入</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const canvas = document.getElementById('paintCanvas');
@@ -116,32 +149,47 @@
     const colorPicker = document.getElementById('colorPicker');
     const controlLabel = document.getElementById('controlLabel');
 
+    // 彈出對話框元件
+    const textModal = document.getElementById('textModal');
+    const modalTextInput = document.getElementById('modalTextInput');
+    const modalConfirm = document.getElementById('modalConfirm');
+    const modalCancel = document.getElementById('modalCancel');
+
     let currentImage = null;
-    let currentMode = 'pipe-straight'; // 'pipe-straight', 'stamp', 'text', 'freehand'
+    let currentMode = 'pipe-straight';
     let currentColor = '#00aaff';
     let currentSize = 6;
     let currentStamp = 'compressor';
 
     let isDrawing = false;
-    let straightStart = null; // 直線起點 {x, y}
+    let straightStart = null;
+    let pendingTextPos = null;
     let lastX = 0, lastY = 0;
     let historyStack = [];
 
     // 初始化畫布尺寸
-    function resizeCanvas() {
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
-      redrawAll();
+    function initCanvasSize() {
+      if (canvas.width !== container.clientWidth || canvas.height !== container.clientHeight) {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        redrawBase();
+      }
     }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+    window.addEventListener('resize', () => {
+      // 避免彈出鍵盤時完全清空畫布內容
+      if (historyStack.length > 0) {
+        ctx.putImageData(historyStack[historyStack.length - 1], 0, 0);
+      } else {
+        initCanvasSize();
+      }
+    });
 
     function saveState() {
-      if (historyStack.length >= 12) historyStack.shift();
+      if (historyStack.length >= 15) historyStack.shift();
       historyStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
     }
 
-    function redrawAll() {
+    function redrawBase() {
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       if (currentImage) {
@@ -165,7 +213,7 @@
         img.onload = () => {
           currentImage = img;
           historyStack = [];
-          redrawAll();
+          redrawBase();
           saveState();
         };
         img.src = event.target.result;
@@ -180,82 +228,100 @@
       return { x: clientX - rect.left, y: clientY - rect.top };
     }
 
-    // 繪製空壓設備圖塊 (SVG/Canvas向量圖例)
-    function drawEquipmentBlock(x, y, type, size) {
+    // 繪製設備與管件圖塊
+    function drawStamp(x, y, type, size) {
       ctx.save();
       ctx.translate(x, y);
       const w = size * 2.2;
       const h = size * 1.5;
 
       if (type === 'compressor') {
-        // 空壓機：主機方框 + 散熱百葉/壓縮符號
         ctx.fillStyle = '#2c3e50';
         ctx.strokeStyle = '#00d2ff';
         ctx.lineWidth = 3;
         ctx.fillRect(-w/2, -h/2, w, h);
         ctx.strokeRect(-w/2, -h/2, w, h);
-
         ctx.fillStyle = '#00d2ff';
         ctx.font = `bold ${Math.max(12, size * 0.4)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('空壓機', 0, 0);
       } else if (type === 'tank') {
-        // 儲氣筒：圓角壓力容器立式外型
         ctx.fillStyle = '#1e3799';
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 3;
         ctx.beginPath();
         const r = w / 2;
-        ctx.roundRect(-r, -h/1.2, w, h * 1.6, 20);
-        ctx.fill();
-        ctx.stroke();
-
+        ctx.roundRect(-r, -h/1.2, w, h * 1.6, 16);
+        ctx.fill(); ctx.stroke();
         ctx.fillStyle = '#fff';
         ctx.font = `bold ${Math.max(12, size * 0.38)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('儲氣筒', 0, 0);
       } else if (type === 'dryer') {
-        // 乾燥機：帶有冷媒循環意象的方塊
         ctx.fillStyle = '#0a3d62';
         ctx.strokeStyle = '#60a5fa';
         ctx.lineWidth = 3;
         ctx.fillRect(-w/2, -h/2, w, h);
         ctx.strokeRect(-w/2, -h/2, w, h);
-
         ctx.fillStyle = '#60a5fa';
         ctx.font = `bold ${Math.max(12, size * 0.4)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('乾燥機', 0, 0);
+      } else if (type === 'tee') {
+        // 三通管件 (Tee) 圖塊
+        const arm = size * 0.8;
+        ctx.strokeStyle = currentColor;
+        ctx.lineWidth = Math.max(4, size * 0.25);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        // 水平通管
+        ctx.moveTo(-arm, 0); ctx.lineTo(arm, 0);
+        // 分支向上
+        ctx.moveTo(0, 0); ctx.lineTo(0, -arm);
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(0, 0, ctx.lineWidth * 0.8, 0, Math.PI * 2); ctx.fill();
+      } else if (type === 'coupler') {
+        // 快速接頭圖塊 (母頭+插銷)
+        const rad = Math.max(10, size * 0.5);
+        ctx.fillStyle = currentColor;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, rad, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, rad * 0.45, 0, Math.PI * 2);
+        ctx.stroke();
       }
       ctx.restore();
     }
 
-    // 觸控與點擊邏輯
-    function handleTouchStart(e) {
+    // 觸控事件
+    canvas.addEventListener('touchstart', (e) => {
       const pos = getTouchPos(e);
 
       if (currentMode === 'stamp') {
-        drawEquipmentBlock(pos.x, pos.y, currentStamp, currentSize);
+        drawStamp(pos.x, pos.y, currentStamp, currentSize);
         saveState();
       } else if (currentMode === 'text') {
-        const text = prompt('請輸入標註文字 (如: 1" 鍍鋅管、50HP、380V):');
-        if (text) {
-          ctx.font = `bold ${currentSize}px sans-serif`;
-          ctx.fillStyle = currentColor;
-          ctx.shadowColor = '#000';
-          ctx.shadowBlur = 4;
-          ctx.fillText(text, pos.x, pos.y);
-          ctx.shadowBlur = 0;
-          saveState();
-        }
+        pendingTextPos = pos;
+        modalTextInput.value = '';
+        textModal.style.display = 'flex';
+        setTimeout(() => modalTextInput.focus(), 50);
       } else if (currentMode === 'pipe-straight') {
         if (!straightStart) {
-          straightStart = pos; // 標定起點
+          straightStart = pos;
+          // 畫一個小起點標記
+          ctx.fillStyle = currentColor;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, currentSize / 2, 0, Math.PI * 2);
+          ctx.fill();
         } else {
-          // 標定終點並連線
           ctx.beginPath();
           ctx.moveTo(straightStart.x, straightStart.y);
           ctx.lineTo(pos.x, pos.y);
@@ -263,7 +329,7 @@
           ctx.lineWidth = currentSize;
           ctx.lineCap = 'round';
           ctx.stroke();
-          straightStart = null; // 重設起點
+          straightStart = null;
           saveState();
         }
       } else if (currentMode === 'freehand') {
@@ -271,9 +337,9 @@
         lastX = pos.x;
         lastY = pos.y;
       }
-    }
+    }, { passive: false });
 
-    function handleTouchMove(e) {
+    canvas.addEventListener('touchmove', (e) => {
       if (currentMode === 'freehand' && isDrawing) {
         const pos = getTouchPos(e);
         ctx.beginPath();
@@ -288,27 +354,44 @@
         lastY = pos.y;
         e.preventDefault();
       }
-    }
+    }, { passive: false });
 
-    function handleTouchEnd() {
+    canvas.addEventListener('touchend', () => {
       if (currentMode === 'freehand' && isDrawing) {
         isDrawing = false;
         saveState();
       }
-    }
+    });
 
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-    canvas.addEventListener('touchend', handleTouchEnd);
+    // 文字彈出視窗確認
+    modalConfirm.addEventListener('click', () => {
+      const text = modalTextInput.value.trim();
+      if (text && pendingTextPos) {
+        ctx.font = `bold ${currentSize}px sans-serif`;
+        ctx.fillStyle = currentColor;
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 5;
+        ctx.fillText(text, pendingTextPos.x, pendingTextPos.y);
+        ctx.shadowBlur = 0;
+        saveState();
+      }
+      textModal.style.display = 'none';
+      pendingTextPos = null;
+    });
 
-    // 切換工具按鈕邏輯
+    modalCancel.addEventListener('click', () => {
+      textModal.style.display = 'none';
+      pendingTextPos = null;
+    });
+
+    // 切換按鈕
     document.querySelectorAll('.tool-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
         currentMode = btn.dataset.type;
-        straightStart = null; // 切換時清空未完成的連線起點
+        straightStart = null;
 
         if (currentMode === 'pipe-straight') {
           currentColor = btn.dataset.color;
@@ -317,11 +400,11 @@
           sizeRange.value = currentSize;
         } else if (currentMode === 'stamp') {
           currentStamp = btn.dataset.stamp;
-          currentSize = 40; // 預設圖塊大小
+          currentSize = (currentStamp === 'tee' || currentStamp === 'coupler') ? 25 : 40;
           controlLabel.textContent = '圖塊尺寸:';
           sizeRange.value = currentSize;
         } else if (currentMode === 'text') {
-          currentSize = 20; // 預設字體大小
+          currentSize = 22;
           controlLabel.textContent = '文字字體大小:';
           sizeRange.value = currentSize;
         } else if (currentMode === 'freehand') {
@@ -334,18 +417,16 @@
       });
     });
 
-    // 動態修改粗細 / 尺寸
     sizeRange.addEventListener('input', (e) => {
       currentSize = parseInt(e.target.value, 10);
       sizeValue.textContent = `${currentSize}px`;
     });
 
-    // 動態自訂顏色
     colorPicker.addEventListener('input', (e) => {
       currentColor = e.target.value;
     });
 
-    // 復原上一動作
+    // 復原
     document.getElementById('undoBtn').addEventListener('click', () => {
       straightStart = null;
       if (historyStack.length > 1) {
@@ -353,25 +434,54 @@
         const prevState = historyStack[historyStack.length - 1];
         ctx.putImageData(prevState, 0, 0);
       } else if (historyStack.length === 1) {
-        redrawAll();
+        historyStack.pop();
+        redrawBase();
       }
     });
 
-    // 清空重繪
+    // 重整
     document.getElementById('clearBtn').addEventListener('click', () => {
       straightStart = null;
       historyStack = [];
-      redrawAll();
+      redrawBase();
       saveState();
     });
 
-    // 匯出儲存
-    document.getElementById('saveBtn').addEventListener('click', () => {
-      const link = document.createElement('a');
-      link.download = `空壓機現場配置_${Date.now()}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+    // 儲存圖檔 (針對 iPhone Safari 深度優化：支援原生分享與長按儲存)
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      canvas.toBlob(async (blob) => {
+        const file = new File([blob], `空壓機現場配置_${Date.now()}.png`, { type: 'image/png' });
+
+        // 若支援原生分享 (iOS Safari 支援直接分享至相簿/LINE)
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: '空壓機管線配置圖',
+              text: '現場繪製空壓機配置'
+            });
+            return;
+          } catch (err) {
+            if (err.name !== 'AbortError') console.error(err);
+          }
+        }
+
+        // 備用方案：直接在新分頁開啟全圖，供長按存入相簿
+        const dataUrl = canvas.toDataURL('image/png');
+        const imgWin = window.open('');
+        if (imgWin) {
+          imgWin.document.write(`<title>長按圖片儲存到相簿</title><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;"><img src="${dataUrl}" style="max-width:100%;max-height:100%;"></body>`);
+        } else {
+          const a = document.createElement('a');
+          a.download = `空壓機現場配置_${Date.now()}.png`;
+          a.href = dataUrl;
+          a.click();
+        }
+      }, 'image/png');
     });
+
+    // 初始化啟動
+    initCanvasSize();
   </script>
 </body>
 </html>
