@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <!-- iOS 全螢幕 App 設定 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="管線標註">
+  <meta name="theme-color" content="#1e1e1e">
+
+  <title>機電現場配管標註</title>
+  <style>
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background-color: #121212; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; }
+    
+    /* 頂部操作列 */
+    header {
+      background: #1e1e1e; padding: env(safe-area-inset-top, 10px) 12px 10px 12px;
+      display: flex; gap: 8px; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; z-index: 10;
+    }
+    .action-btn {
+      background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 8px;
+      padding: 8px 12px; font-size: 14px; font-weight: 500; cursor: pointer; flex: 1; text-align: center;
+    }
+    .action-btn.primary { background: #007aff; border-color: #007aff; }
+
+    /* 中間畫布區域 */
+    #canvas-container {
+      flex: 1; position: relative; width: 100%; height: 100%; overflow: hidden;
+      display: flex; align-items: center; justify-content: center; background: #000;
+    }
+    canvas { touch-action: none; display: block; }
+
+    /* 底部管線選單列 */
+    footer {
+      background: #1e1e1e; padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px)) 12px;
+      display: flex; gap: 8px; overflow-x: auto; border-top: 1px solid #333; z-index: 10;
+    }
+    .pipe-btn {
+      flex: 0 0 auto; background: #2a2a2a; color: #ccc; border: 2px solid transparent;
+      border-radius: 20px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;
+    }
+    .pipe-btn.active { border-color: #fff; color: #fff; background: #383838; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* 隱藏原生相機選單 */
+    #cameraInput { display: none; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <label for="cameraInput" class="action-btn primary">📷 拍照載入</label>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment">
+    <button class="action-btn" id="undoBtn">復原 (Undo)</button>
+    <button class="action-btn" id="clearBtn">重整清空</button>
+    <button class="action-btn primary" id="saveBtn">儲存圖檔</button>
+  </header>
+
+  <div id="canvas-container">
+    <canvas id="paintCanvas"></canvas>
+  </div>
+
+  <footer>
+    <button class="pipe-btn active" data-color="#ff3b30" data-width="6" data-name="EMT管">
+      <span class="dot" style="background: #ff3b30;"></span>EMT管
+    </button>
+    <button class="pipe-btn" data-color="#007aff" data-width="4" data-name="PVC管">
+      <span class="dot" style="background: #007aff;"></span>PVC管
+    </button>
+    <button class="pipe-btn" data-color="#ff9500" data-width="12" data-name="電纜架">
+      <span class="dot" style="background: #ff9500;"></span>電纜架
+    </button>
+    <button class="pipe-btn" data-color="#34c759" data-width="3" data-name="接地線">
+      <span class="dot" style="background: #34c759;"></span>接地線
+    </button>
+  </footer>
+
+  <script>
+    const canvas = document.getElementById('paintCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('canvas-container');
+    const cameraInput = document.getElementById('cameraInput');
+
+    let currentImage = null;
+    let currentColor = '#ff3b30';
+    let currentWidth = 6;
+    let isDrawing = false;
+    let lastX = 0, lastY = 0;
+    let historyStack = [];
+
+    // 初始化畫布尺寸
+    function resizeCanvas() {
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      redraw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function saveState() {
+      if (historyStack.length >= 10) historyStack.shift();
+      historyStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+    }
+
+    function redraw() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (currentImage) {
+        // 計算等比例縮放居中
+        const hRatio = canvas.width / currentImage.width;
+        const vRatio = canvas.height / currentImage.height;
+        const ratio = Math.min(hRatio, vRatio);
+        const centerShiftX = (canvas.width - currentImage.width * ratio) / 2;
+        const centerShiftY = (canvas.height - currentImage.height * ratio) / 2;
+        ctx.drawImage(currentImage, 0, 0, currentImage.width, currentImage.height,
+                      centerShiftX, centerShiftY, currentImage.width * ratio, currentImage.height * ratio);
+      }
+    }
+
+    // 載入照片
+    cameraInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          currentImage = img;
+          historyStack = [];
+          redraw();
+          saveState();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 觸控繪圖支援
+    function getTouchPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    function startDraw(e) {
+      isDrawing = true;
+      const pos = getTouchPos(e);
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      const pos = getTouchPos(e);
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = currentWidth;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      lastX = pos.x;
+      lastY = pos.y;
+      e.preventDefault();
+    }
+
+    function stopDraw() {
+      if (isDrawing) {
+        isDrawing = false;
+        saveState();
+      }
+    }
+
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', stopDraw);
+
+    // 切換管線規格
+    document.querySelectorAll('.pipe-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.pipe-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentColor = btn.dataset.color;
+        currentWidth = parseInt(btn.dataset.width, 10);
+      });
+    });
+
+    // 復原上一筆 (Undo)
+    document.getElementById('undoBtn').addEventListener('click', () => {
+      if (historyStack.length > 1) {
+        historyStack.pop();
+        const prevState = historyStack[historyStack.length - 1];
+        ctx.putImageData(prevState, 0, 0);
+      } else if (historyStack.length === 1) {
+        redraw();
+      }
+    });
+
+    // 清空重整
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      historyStack = [];
+      redraw();
+      saveState();
+    });
+
+    // 匯出儲存
+    document.getElementById('saveBtn').addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = `現場管線配置_${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  </script>
+</body>
+</html>
